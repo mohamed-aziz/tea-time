@@ -6,6 +6,7 @@
 ;; Keywords: timer tea-time
 
 ;; Copyright (C) 2011-2012 Gabriel Saldana <gsaldana@gmail.com>
+;; Copyright (C) 2017 Mohamed Aziz Knani <medazizknani@gmail.com>
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -80,6 +81,13 @@ If you don't have alsa, it is better to be .wav file"
   :type 'string
   )
 
+(defvar tea-mode-line-string nil
+  "String to display in the mode line.")
+;;;###autoload (put 'tea-mode-line-string 'risky-local-variable t)
+
+
+(defvar tea-active-timer nil)
+
 (defcustom tea-time-sound-command nil
   "Command to run to play sounds."
   :group 'tea-time
@@ -137,6 +145,17 @@ Store current timer in a global variable."
   (and (boundp 'tea-active-timer) (< (float-time) (float-time (timer--time tea-active-timer))))
   )
 
+(defun tea-update-modeline ()
+  "docstring"
+  (let* (
+	 (remaining-time (decode-time (time-subtract (timer--time tea-active-timer) (current-time))))
+	 (remaining-seconds (nth 0 remaining-time))
+	 (remaining-minutes (nth 1 remaining-time))
+	 )
+
+    (setq tea-mode-line-string (format "[Tea] %d:%d" remaining-minutes remaining-seconds))
+    ))
+
 (defun tea-time (timeval)
   "Ask how long the tea should draw and start a timer.
 Cancel prevoius timer, started by this function"
@@ -147,16 +166,23 @@ Cancel prevoius timer, started by this function"
 					      (match-end 1))))
 	   (seconds (* minutes 60)))
       (progn
+	(setq global-mode-string
+		(delq 'tea-mode-line-string global-mode-string))
 	(tea-timer-cancel)
 	(setq tea-active-timer (tea-timer seconds))
-	)))
-  )
+	(add-to-list 'global-mode-string 'tea-mode-line-string t)
+	(run-at-time nil 1 'tea-update-modeline)
+	(add-hook 'tea-time-notification-hook (lambda ()
+						(setq global-mode-string
+						      (delq 'tea-mode-line-string global-mode-string))
+						))
+	
+	))))
 
 (defun tea-time-show-notification (notification)
   "Show notification. Use mumbles."
     (message notification)
-    (run-hooks 'tea-time-notification-hook)
-    )
+    (run-hooks 'tea-time-notification-hook))
 
 (provide 'tea-time)
 ;;; tea-time.el ends here
